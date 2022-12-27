@@ -609,7 +609,6 @@ class IBData(with_metaclass(MetaIBData, DataBase)):
             dtbegin = None
             if self.fromdate > float('-inf'):
                 dtbegin = num2date(self.fromdate)
-
             self.q = self.ibstore.reqHistoricalDataEx(
                 contract=self.contract, 
                 enddate=dtend, begindate=dtbegin,
@@ -655,6 +654,8 @@ class IBData(with_metaclass(MetaIBData, DataBase)):
         # contains open/high/low/close/volume prices
         # The historical data has the same data but with 'date' instead of
         # 'time' for datetime
+
+        print("rtbar", rtbar)
         
         if hist:
             if hist_tzo is None:
@@ -685,6 +686,9 @@ class IBData(with_metaclass(MetaIBData, DataBase)):
         # of prices. Ideally the
         # contains open/high/low/close/volume prices
         # Datetime transformation
+
+        print("rtvol", rtvol)
+
         dt = date2num(rtvol.time)
         if dt < self.lines.datetime[-1] and not self.p.latethrough:
             return False  # cannot deliver earlier than already delivered

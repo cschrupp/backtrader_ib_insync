@@ -478,7 +478,7 @@ class IBStore(with_metaclass(MetaSingleton, object)):
 
         histdata = self.ib.reqHistoricalData(
                                 contract,
-                                intdate.strftime('%Y%m%d %H:%M:%S') + ' GMT',
+                                intdate.strftime('%Y%m%d %H:%M:%S'), # + ' GMT',
                                 duration,
                                 barsize,
                                 what,
@@ -511,10 +511,9 @@ class IBStore(with_metaclass(MetaSingleton, object)):
         # self.histfmt[tickerId] = tframe >= TimeFrame.Days
         # self.histsend[tickerId] = sessionend
         # self.histtz[tickerId] = tz
-
         histdata = self.ib.reqHistoricalData(
                             contract,
-                            enddate.strftime('%Y%m%d %H:%M:%S') + ' GMT',
+                            enddate.strftime('%Y%m%d %H:%M:%S'),  # + ' GMT',
                             duration,
                             barsize,
                             what,
@@ -899,12 +898,35 @@ class IBStore(with_metaclass(MetaSingleton, object)):
     def reqPositions(self):
         '''Proxy to reqPositions'''
         return self.ib.reqPositions()
-    
+
+    def updatePortfolio(self, msg):
+        # Lock access to the position dicts. This is called in sub-thread and
+        # can kick in at any time
+
+        position = Position(msg.position, msg.avgCost)
+        self.positions[msg.contract.conId] = position
+
+        if not position.fix(msg.position, msg.avgCost):
+            err = ('The current calculated position and '
+                   'the position reported by the broker do not match. '
+                   'Operation can continue, but the trades '
+                   'calculated in the strategy may be wrong')
+
+            self.notifs.put((err, (), {}))
+
+
     def getposition(self, contract, clone=False):
         # Lock access to the position dicts. This is called from main thread
         # and updates could be happening in the background
         #with self._lock_pos:
+        _msgs = self.reqPositions()
+        
+        for msg in _msgs:
+            if msg.contract.conId == contract.conId:
+                self.updatePortfolio(msg)
+        
         position = self.positions[contract.conId]
+        
         if clone:
             return copy(position)
 
